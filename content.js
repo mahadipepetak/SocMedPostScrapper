@@ -136,117 +136,113 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
   if (msg.action === "startFieldMapping") {
     const selectors = {};
-
+    let currentField = null;
+    let selectedElements = [];
+  
     const askNextField = () => {
-      const field = prompt(
+      selectedElements = [];
+  
+      currentField = prompt(
         "Enter field name (e.g. text, date, likes).\nLeave blank or press Cancel to finish."
       );
-
-      if (!field) {
-        document.removeEventListener("click", captureClick, true);
-
-        const host = window.location.hostname;
-        chrome.storage.local.get({ patterns: {} }, (res) => {
-          const patterns = res.patterns || {};
-          const oldPattern = patterns[host] || { container: "" };
-          const updatedPattern = { ...oldPattern, ...selectors };
-
-          chrome.storage.local.set(
-            { patterns: { ...patterns, [host]: updatedPattern } },
-            () => {
-              chrome.runtime.sendMessage({
-                action: "fieldsMapped",
-                done: true,
-              });
-            }
-          );
-        });
-
+  
+      if (!currentField) {
+        saveFieldMappings();
         return;
       }
-
-      const manualSelector = prompt(
-        `Enter CSS selector for "${field}" (optional).\nLeave blank to select element manually.`
+  
+      alert(
+        `Click 2 or more elements from different posts for "${currentField}".\nClick ESC to finish selecting.`
       );
-
-      if (manualSelector) {
-        selectors[field] = manualSelector;
-        askNextField(); // Repeat
-      } else {
-        currentField = field;
-        alert(`Click the element to assign to "${field}".`);
-        document.addEventListener("click", captureClick, true);
-      }
+  
+      document.addEventListener("click", captureFieldClick, true);
+      document.addEventListener("keydown", escapeToFinish, true);
     };
-
-    let currentField = null;
-
-    const captureClick = (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      document.removeEventListener("click", captureClick, true);
-
-      const el = e.target;
-
-      chrome.storage.local.get("patterns", (res) => {
-        const host = window.location.hostname;
-        const containerSelector = res.patterns?.[host]?.container || "body";
-
-        // const postContainer = el.closest(containerSelector);
-        const containers = document.querySelectorAll(containerSelector);
-        let postContainer = null;
-        for (const c of containers) {
-          if (c.contains(el)) {
-            postContainer = c;
-            break;
-          }
-        }
-
-        if (!postContainer) {
-          alert("❌ Could not find post container based on saved pattern.");
+  
+    const escapeToFinish = (e) => {
+      if (e.key === "Escape") {
+        document.removeEventListener("click", captureFieldClick, true);
+        document.removeEventListener("keydown", escapeToFinish, true);
+  
+        if (selectedElements.length < 2) {
+          alert("❌ Please select at least 2 elements.");
+          askNextField();
           return;
         }
-
+  
+        const commonSelector = autoDetectRelativeSelector(selectedElements);
+        selectors[currentField] = commonSelector;
+  
+        alert(`✅ Selector for "${currentField}":\n${commonSelector}`);
+        askNextField();
+      }
+    };
+  
+    const captureFieldClick = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+  
+      selectedElements.push(e.target);
+      e.target.style.outline = "2px dashed orange";
+    };
+  
+    const autoDetectRelativeSelector = (elements) => {
+      const paths = elements.map((el) => {
+        const container = findPostContainer(el);
         let current = el;
         const path = [];
-
-        while (current && current !== postContainer) {
-          // let tag = current.tagName.toLowerCase();
-          // if (current.id) tag += `#${current.id}`;
-          // else if (current.className) {
-          //   const classes = current.className.trim().split(/\s+/).join(".");
-          //   tag += `.${classes}`;
-          // }
-          // path.unshift(tag);
+  
+        while (current && current !== container) {
           path.unshift(buildSafeTag(current));
           current = current.parentElement;
         }
-
-        // Include the clicked element itself
-        // let tag = el.tagName.toLowerCase();
-        // if (el.id) tag += `#${el.id}`;
-        // else if (el.className) {
-        //   const classes = el.className.trim().split(/\s+/).join(".");
-        //   tag += `.${classes}`;
-        // }
-
-        // if (!path.includes(tag)) {
-        //   path.push(tag);
-        // }
-        // path.push(tag);
+  
         const tag = buildSafeTag(el);
-        if (!path.includes(tag)) {
-          path.push(tag);
-        }
-
-        const relativeSelector = path.join(" > ");
-        selectors[currentField] = relativeSelector;
-
-        alert(`✅ Field "${currentField}" mapped to:\n${relativeSelector}`);
-        askNextField();
+        if (!path.includes(tag)) path.push(tag);
+  
+        return path;
+      });
+  
+      const shortest = Math.min(...paths.map((p) => p.length));
+      const common = [];
+  
+      for (let i = 0; i < shortest; i++) {
+        const step = paths[0][i];
+        if (paths.every((p) => p[i] === step)) {
+          common.push(step);
+        } else break;
+      }
+  
+      return common.join(" > ");
+    };
+  
+    const findPostContainer = (el) => {
+      const containerSelector = (() => {
+        const host = window.location.hostname;
+        const patterns = JSON.parse(localStorage.getItem("cachedPatterns") || "{}");
+        return patterns[host]?.container || "body";
+      })();
+  
+      const containers = document.querySelectorAll(containerSelector);
+      for (const c of containers) {
+        if (c.contains(el)) return c;
+      }
+      return document.body;
+    };
+  
+    const saveFieldMappings = () => {
+      const host = window.location.hostname;
+      chrome.storage.local.get({ patterns: {} }, (res) => {
+        const patterns = res.patterns || {};
+        const oldPattern = patterns[host] || { container: "" };
+        const updatedPattern = { ...oldPattern, ...selectors };
+  
+        chrome.storage.local.set({ patterns: { ...patterns, [host]: updatedPattern } }, () => {
+          chrome.runtime.sendMessage({ action: "fieldsMapped", done: true });
+        });
       });
     };
-
+  
     askNextField();
     sendResponse({ started: true });
     return true;
