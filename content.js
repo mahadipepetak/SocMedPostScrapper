@@ -5,13 +5,21 @@ function autoDetectPattern(el1, el2) {
   const getPath = (el) => {
     let path = [];
     while (el && el !== document.body) {
-      let tag = el.tagName.toLowerCase();
-      if (el.id) tag += `#${el.id}`;
-      else if (el.className) {
-        const classes = el.className.trim().split(/\s+/).join(".");
-        tag += `.${classes}`;
-      }
-      path.unshift(tag);
+      // let tag = el.tagName.toLowerCase();
+      // if (el.id) tag += `#${el.id}`;
+      // else if (el.className) {
+      //   const safeClasses = el.className
+      //     .trim()
+      //     .split(/\s+/)
+      //     .filter((cls) => /^[a-zA-Z0-9_-]+$/.test(cls)) // ✅ only safe class names
+      //     .join(".");
+
+      //   if (safeClasses) {
+      //     tag += `.${safeClasses}`;
+      //   }
+      // }
+      // path.unshift(tag);
+      path.unshift(buildSafeTag(el));
       el = el.parentElement;
     }
     return path;
@@ -29,7 +37,7 @@ function autoDetectPattern(el1, el2) {
   return {
     container: common.join(" > "),
     text: "div, p, span",
-    date: "time",
+    date: "",
     likes: "",
     shares: "",
     views: "",
@@ -58,6 +66,25 @@ document.addEventListener(
   },
   true
 );
+
+function buildSafeTag(el) {
+  if (!el || !el.tagName) return "";
+
+  let tag = el.tagName.toLowerCase();
+
+  if (el.id) {
+    tag += `#${el.id}`;
+  } else if (el.className) {
+    const safeClasses = el.className
+      .trim()
+      .split(/\s+/)
+      .filter((cls) => /^[a-zA-Z0-9_-]+$/.test(cls)) // ✅ valid class names only
+      .join(".");
+    if (safeClasses) tag += `.${safeClasses}`;
+  }
+
+  return tag;
+}
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.action === "enableSelectionMode") {
@@ -160,25 +187,64 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       document.removeEventListener("click", captureClick, true);
 
       const el = e.target;
-      const path = [];
 
-      let current = el;
-      while (current && current !== document.body) {
-        let tag = current.tagName.toLowerCase();
-        if (current.id) tag += `#${current.id}`;
-        else if (current.className) {
-          const classes = current.className.trim().split(/\s+/).join(".");
-          tag += `.${classes}`;
+      chrome.storage.local.get("patterns", (res) => {
+        const host = window.location.hostname;
+        const containerSelector = res.patterns?.[host]?.container || "body";
+
+        // const postContainer = el.closest(containerSelector);
+        const containers = document.querySelectorAll(containerSelector);
+        let postContainer = null;
+        for (const c of containers) {
+          if (c.contains(el)) {
+            postContainer = c;
+            break;
+          }
         }
-        path.unshift(tag);
-        current = current.parentElement;
-      }
 
-      const fullSelector = path.join(" > ");
-      selectors[currentField] = fullSelector;
+        if (!postContainer) {
+          alert("❌ Could not find post container based on saved pattern.");
+          return;
+        }
 
-      alert(`✅ Field "${currentField}" mapped to:\n${fullSelector}`);
-      askNextField();
+        let current = el;
+        const path = [];
+
+        while (current && current !== postContainer) {
+          // let tag = current.tagName.toLowerCase();
+          // if (current.id) tag += `#${current.id}`;
+          // else if (current.className) {
+          //   const classes = current.className.trim().split(/\s+/).join(".");
+          //   tag += `.${classes}`;
+          // }
+          // path.unshift(tag);
+          path.unshift(buildSafeTag(current));
+          current = current.parentElement;
+        }
+
+        // Include the clicked element itself
+        // let tag = el.tagName.toLowerCase();
+        // if (el.id) tag += `#${el.id}`;
+        // else if (el.className) {
+        //   const classes = el.className.trim().split(/\s+/).join(".");
+        //   tag += `.${classes}`;
+        // }
+
+        // if (!path.includes(tag)) {
+        //   path.push(tag);
+        // }
+        // path.push(tag);
+        const tag = buildSafeTag(el);
+        if (!path.includes(tag)) {
+          path.push(tag);
+        }
+
+        const relativeSelector = path.join(" > ");
+        selectors[currentField] = relativeSelector;
+
+        alert(`✅ Field "${currentField}" mapped to:\n${relativeSelector}`);
+        askNextField();
+      });
     };
 
     askNextField();
