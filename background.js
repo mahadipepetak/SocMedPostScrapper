@@ -1,0 +1,1 @@
+// Empty for now. Reserved for future use (e.g., context menu).
