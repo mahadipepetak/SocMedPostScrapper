@@ -106,4 +106,83 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     sendResponse({ success: true });
     return true;
   }
+
+  if (msg.action === "startFieldMapping") {
+    const selectors = {};
+
+    const askNextField = () => {
+      const field = prompt(
+        "Enter field name (e.g. text, date, likes).\nLeave blank or press Cancel to finish."
+      );
+
+      if (!field) {
+        document.removeEventListener("click", captureClick, true);
+
+        const host = window.location.hostname;
+        chrome.storage.local.get({ patterns: {} }, (res) => {
+          const patterns = res.patterns || {};
+          const oldPattern = patterns[host] || { container: "" };
+          const updatedPattern = { ...oldPattern, ...selectors };
+
+          chrome.storage.local.set(
+            { patterns: { ...patterns, [host]: updatedPattern } },
+            () => {
+              chrome.runtime.sendMessage({
+                action: "fieldsMapped",
+                done: true,
+              });
+            }
+          );
+        });
+
+        return;
+      }
+
+      const manualSelector = prompt(
+        `Enter CSS selector for "${field}" (optional).\nLeave blank to select element manually.`
+      );
+
+      if (manualSelector) {
+        selectors[field] = manualSelector;
+        askNextField(); // Repeat
+      } else {
+        currentField = field;
+        alert(`Click the element to assign to "${field}".`);
+        document.addEventListener("click", captureClick, true);
+      }
+    };
+
+    let currentField = null;
+
+    const captureClick = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      document.removeEventListener("click", captureClick, true);
+
+      const el = e.target;
+      const path = [];
+
+      let current = el;
+      while (current && current !== document.body) {
+        let tag = current.tagName.toLowerCase();
+        if (current.id) tag += `#${current.id}`;
+        else if (current.className) {
+          const classes = current.className.trim().split(/\s+/).join(".");
+          tag += `.${classes}`;
+        }
+        path.unshift(tag);
+        current = current.parentElement;
+      }
+
+      const fullSelector = path.join(" > ");
+      selectors[currentField] = fullSelector;
+
+      alert(`✅ Field "${currentField}" mapped to:\n${fullSelector}`);
+      askNextField();
+    };
+
+    askNextField();
+    sendResponse({ started: true });
+    return true;
+  }
 });

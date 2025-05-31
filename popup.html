@@ -12,10 +12,16 @@
     <div id="status">No posts selected yet.</div>
     <ul id="selected-list"></ul>
 
+    <button id="clear-pattern">🗑 Clear Pattern</button>
     <hr />
     <h4>🔍 Saved Pattern</h4>
     <pre id="pattern-view" style="white-space: pre-wrap; font-size: 12px"></pre>
 
     <script src="popup.js"></script>
+
+
+    <span>
+      chrome.storage.local.get("patterns", (res) => console.log(res.patterns));
+    </span>
   </body>
 </html>
