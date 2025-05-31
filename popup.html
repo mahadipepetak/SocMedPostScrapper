@@ -1,14 +1,21 @@
-
 <!DOCTYPE html>
 <html>
-<head><title>Post Scraper</title></head>
-<body>
-  <h3>Social Post Scraper</h3>
-  <button id="start-select">🔴 Start Selecting</button>
-  <button id="detect-pattern">🧠 Detect Pattern</button>
-  <hr />
-  <div id="status">No posts selected yet.</div>
-  <ul id="selected-list"></ul>
-  <script src="popup.js"></script>
-</body>
+  <head>
+    <title>Post Scraper</title>
+  </head>
+  <body>
+    <h3>Social Post Scraper</h3>
+    <button id="start-select">🔴 Start Selecting</button>
+    <button id="detect-pattern">🧠 Detect Pattern</button>
+    <button id="map-fields">🧩 Map Fields</button>
+    <hr />
+    <div id="status">No posts selected yet.</div>
+    <ul id="selected-list"></ul>
+
+    <hr />
+    <h4>🔍 Saved Pattern</h4>
+    <pre id="pattern-view" style="white-space: pre-wrap; font-size: 12px"></pre>
+
+    <script src="popup.js"></script>
+  </body>
 </html>

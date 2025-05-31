@@ -1,4 +1,3 @@
-
 window.selectedPosts = [];
 window.selectionMode = false;
 
@@ -98,6 +97,13 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       });
     });
 
+    return true;
+  }
+
+  if (msg.action === "removeSelectedPost") {
+    const removed = window.selectedPosts.splice(msg.index, 1)[0];
+    if (removed) removed.style.outline = ""; // remove visual red border
+    sendResponse({ success: true });
     return true;
   }
 });
