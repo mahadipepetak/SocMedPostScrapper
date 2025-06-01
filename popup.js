@@ -1,3 +1,5 @@
+import { defaultPatterns } from "./shared/defaultPatterns.js";
+
 const statusEl = document.getElementById("status");
 const listEl = document.getElementById("selected-list");
 
@@ -75,20 +77,25 @@ chrome.runtime.onMessage.addListener((msg) => {
 
 document.getElementById("map-fields").onclick = () => {
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-    chrome.tabs.sendMessage(tabs[0].id, { action: "startFieldMapping" }, (res) => {
-      if (res?.done) {
-        alert("✅ Field selectors saved.");
-        loadSavedPattern();
-      } else {
-        alert("⚠️ Field mapping cancelled or failed.");
+    chrome.tabs.sendMessage(
+      tabs[0].id,
+      { action: "startFieldMapping" },
+      (res) => {
+        if (res?.done) {
+          alert("✅ Field selectors saved.");
+          loadSavedPattern();
+        } else {
+          alert("⚠️ Field mapping cancelled or failed.");
+        }
       }
-    });
+    );
   });
 };
 
 function loadSavedPattern() {
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-    const host = new URL(tabs[0].url).hostname;
+    // const host = new URL(tabs[0].url).hostname;
+    const host = new URL(tabs[0].url).hostname.replace(/^www\./, ""); // ✅ FIXED
 
     chrome.storage.local.get("patterns", (res) => {
       const patternView = document.getElementById("pattern-view");
@@ -102,7 +109,8 @@ function loadSavedPattern() {
 
 document.getElementById("clear-pattern").onclick = () => {
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-    const host = new URL(tabs[0].url).hostname;
+    // const host = new URL(tabs[0].url).hostname;
+    const host = new URL(tabs[0].url).hostname.replace(/^www\./, "");
 
     chrome.storage.local.get("patterns", (res) => {
       const patterns = res.patterns || {};
@@ -121,3 +129,46 @@ document.getElementById("clear-pattern").onclick = () => {
 
 refreshSelectedList();
 loadSavedPattern();
+
+// document.getElementById("useDefaultBtn").addEventListener("click", async () => {
+//   const host = location.hostname.replace(/^www\./, '');
+//   const pattern = defaultPatterns[host];
+
+//   if (!pattern) return alert("No default pattern for this platform.");
+
+//   chrome.storage.local.set({ currentPattern: pattern }, () => {
+//     alert("Default pattern loaded.");
+//     // Refresh your UI input fields to reflect this pattern
+//     loadPatternToUI(pattern);
+//   });
+// });
+document.getElementById("useDefaultBtn").addEventListener("click", () => {
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    const url = new URL(tabs[0].url);
+    // const host = url.hostname.replace(/^www\./, '');
+    const host = new URL(tabs[0].url).hostname.replace(/^www\./, ""); // ✅ FIXED
+
+    const pattern = defaultPatterns[host];
+    if (!pattern) {
+      alert("No default pattern for this platform.");
+      return;
+    }
+
+    chrome.storage.local.get("patterns", (res) => {
+      const patterns = res.patterns || {};
+      patterns[host] = pattern;
+
+      chrome.storage.local.set({ patterns }, () => {
+        alert("✅ Default pattern applied for " + host);
+        loadSavedPattern();
+      });
+    });
+  });
+});
+
+document.getElementById("extract-posts").onclick = () => {
+  console.log('Extracting posts: document.getElementById("extract-posts")...');
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    chrome.tabs.sendMessage(tabs[0].id, { action: "extractPosts" });
+  });
+};

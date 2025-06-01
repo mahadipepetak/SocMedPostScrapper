@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html style="width: 400px;">
   <head>
     <title>Post Scraper</title>
   </head>
@@ -7,18 +7,24 @@
     <h3>Social Post Scraper</h3>
     <button id="start-select">🔴 Start Selecting</button>
     <button id="detect-pattern">🧠 Detect Pattern</button>
-    <button id="map-fields">🧩 Map Fields</button>
     <hr />
     <div id="status">No posts selected yet.</div>
     <ul id="selected-list"></ul>
-
-    <button id="clear-pattern">🗑 Clear Pattern</button>
+    
     <hr />
+    <button id="useDefaultBtn">Use Default</button>
+    <button id="map-fields">🧩 Map Fields</button>
+    <button id="clear-pattern">🗑 Clear Pattern</button>
     <h4>🔍 Saved Pattern</h4>
     <pre id="pattern-view" style="white-space: pre-wrap; font-size: 12px"></pre>
 
-    <script src="popup.js"></script>
 
+
+    <hr>
+    <button id="extract-posts">📤 Extract Posts</button>
+
+    <!-- <script src="popup.js"></script> -->
+    <script type="module" src="popup.js"></script>
 
     <span>
       chrome.storage.local.get("patterns", (res) => console.log(res.patterns));

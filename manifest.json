@@ -1,4 +1,3 @@
-
 {
   "manifest_version": 3,
   "name": "Universal Social Post Scraper",
@@ -11,11 +10,17 @@
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["content.js"],
+      "js": ["content.js", "defaults.js"],
       "run_at": "document_idle"
     }
   ],
   "background": {
     "service_worker": "background.js"
-  }
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["shared/defaultPatterns.js"],
+      "matches": ["<all_urls>"]
+    }
+  ]
 }
