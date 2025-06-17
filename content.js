@@ -299,6 +299,16 @@ function extractPostsFromDOM() {
 
       for (const [field, def] of Object.entries(pattern)) {
         if (field === "post") continue;
+        // Special case: if field is "id" and pattern.id is {attribute: ...}, extract from post itself
+        if (
+          field === "id" &&
+          typeof def === "object" &&
+          def.attribute &&
+          !def.selector
+        ) {
+          result[field] = post.getAttribute(def.attribute) || "";
+          continue;
+        }
         result[field] = extractField(post, field, def);
       }
 
@@ -313,17 +323,20 @@ function extractPostsFromDOM() {
 
 function extractField(post, fieldName, def) {
   let value = "";
-
+  console.log(`🧪 Extracting "${fieldName}" using`, def);
+  let el;
   if (def === "id") {
     value = post.getAttribute("id") || "";
   } else if (typeof def === "object") {
-    const el = resolveElement(post, def);
+    el = resolveElement(post, def);
     value = el ? getValueFromElement(el, def) : "";
   } else {
     // fallback for legacy plain selector string
-    const el = post.querySelector(def);
+    el = post.querySelector(def);
     value = el?.textContent.trim() || "";
   }
+
+  console.log("el::", el ?? null);
 
   if (["comments", "upvotes", "share"].includes(fieldName)) {
     console.log(`📦 Field "${fieldName}"`, {
@@ -334,6 +347,7 @@ function extractField(post, fieldName, def) {
     });
   }
 
+  console.log(`✅ Value for "${fieldName}":`, value);
   return value;
 }
 
@@ -355,9 +369,15 @@ function resolveElement(post, def) {
 }
 
 function getValueFromElement(el, def) {
-  const rawValue = def.attribute
+  let rawValue = def.attribute
     ? el.getAttribute(def.attribute)
     : el.textContent;
+
+  // Apply regex extraction if present
+  if (def.regex) {
+    const match = rawValue.match(new RegExp(def.regex));
+    rawValue = match ? match[1] : "";
+  }
 
   return def.prepend ? def.prepend + rawValue : (rawValue || "").trim();
 }
